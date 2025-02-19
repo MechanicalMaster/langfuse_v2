@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Policy Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@heroicons/outline/24/outline.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Chat Interface -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>
+                    <i class="heroicons-outline chat-bubble-left-right"></i>
+                    Policy Chatbot
+                </h1>
+                <div class="header-controls">
+                    <a href="/static/policy.html" class="nav-link">
+                        <i class="heroicons-outline document-plus"></i>
+                        Upload Policy
+                    </a>
+                    <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme">
+                        <i class="heroicons-outline moon dark-icon"></i>
+                        <i class="heroicons-outline sun light-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your message..." 
+                    aria-label="Message input"
+                >
+                <button onclick="sendMessage()">
+                    <i class="heroicons-outline paper-airplane"></i>
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/main.js"></script>
+</body>
+</html> 
