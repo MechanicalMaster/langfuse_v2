@@ -10,4 +10,5 @@ venv/
 .git
 .gitignore
 .env.example
-README.md 
+README.md
+data/ 

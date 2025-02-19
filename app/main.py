@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -9,37 +9,41 @@ from datetime import datetime
 
 settings = get_settings()
 
-app = FastAPI(title=settings.PROJECT_NAME)
-
-# Configure CORS with more specific settings
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
-    max_age=86400,  # 24 hours
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    docs_url=None if os.getenv("RAILWAY_ENVIRONMENT") else "/docs",
+    redoc_url=None if os.getenv("RAILWAY_ENVIRONMENT") else "/redoc"
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Temporarily allow all origins for testing
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Add routers
-app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
-app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"])
+# Basic routes first
+@app.get("/health")
+async def health_check():
+    """Basic health check endpoint"""
+    return {"status": "ok"}
 
 @app.get("/")
 async def root():
-    return FileResponse("app/static/index.html")
+    """Serve the static index.html"""
+    try:
+        return FileResponse("app/static/index.html")
+    except Exception as e:
+        return JSONResponse(
+            content={"message": "Welcome to Policy Chatbot API"},
+            status_code=200
+        )
 
-@app.get("/health")
-async def health_check():
-    """Simple health check endpoint for Railway"""
-    return JSONResponse(
-        content={
-            "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
-            "version": "1.0.0"
-        },
-        status_code=200
-    ) 
+# Mount static files after basic routes
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Add API routers last
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
+app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"]) 
