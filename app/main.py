@@ -4,18 +4,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from .core.config import get_settings
 from .api import chat, documents
+import os
 
 settings = get_settings()
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# Configure CORS
+# Configure CORS with more specific settings
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
+    max_age=86400,  # 24 hours
 )
 
 # Mount static files
@@ -27,4 +29,9 @@ app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", 
 
 @app.get("/")
 async def root():
-    return FileResponse("app/static/index.html") 
+    return FileResponse("app/static/index.html")
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Railway"""
+    return {"status": "healthy"} 

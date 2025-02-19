@@ -1,4 +1,4 @@
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = window.location.origin + '/api/v1';
 
 // File upload handling
 const uploadBox = document.getElementById('uploadBox');
