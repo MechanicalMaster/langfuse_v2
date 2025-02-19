@@ -5,6 +5,9 @@ from fastapi.responses import FileResponse
 from .core.config import get_settings
 from .api import chat, documents
 import os
+from datetime import datetime
+from .services.vector_store_service import VectorStoreService
+from .services import langfuse
 
 settings = get_settings()
 
@@ -34,4 +37,19 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint for Railway"""
-    return {"status": "healthy"} 
+    try:
+        # Check if vector store is accessible
+        vector_store = VectorStoreService()
+        # Check if Langfuse is connected
+        langfuse.trace(name="health_check")
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "environment": "production" if os.getenv("RAILWAY_ENVIRONMENT") else "development"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        } 
