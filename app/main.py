@@ -6,23 +6,25 @@ from .core.config import get_settings
 from .api import chat, documents
 import os
 from datetime import datetime
-from app.core.observability import langfuse
+from .services.vector_store_service import VectorStoreService
+from .services import langfuse
 
 settings = get_settings()
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# More permissive CORS
+# Configure CORS with more specific settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+    max_age=86400,  # 24 hours
 )
 
-# Mount static files with explicit type
-app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Add routers
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
@@ -30,20 +32,20 @@ app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", 
 
 @app.get("/")
 async def root():
-    """Root endpoint serving the chat interface"""
-    try:
-        return FileResponse("app/static/index.html")
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    return FileResponse("app/static/index.html")
 
 @app.get("/health")
 async def health_check():
-    """Basic health check endpoint"""
+    """Health check endpoint for Railway"""
     try:
+        # Check if vector store is accessible
+        vector_store = VectorStoreService()
+        # Check if Langfuse is connected
+        langfuse.trace(name="health_check")
         return {
             "status": "healthy",
             "timestamp": datetime.utcnow().isoformat(),
-            "version": "1.0.0"
+            "environment": "production" if os.getenv("RAILWAY_ENVIRONMENT") else "development"
         }
     except Exception as e:
         return {

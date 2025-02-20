@@ -8,14 +8,14 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Authentication
-    AUTH_PASSWORD: str = os.getenv("AUTH_PASSWORD", "Langfuse")
+    AUTH_PASSWORD: str = "Langfuse"
     
     # OpenAI
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_API_KEY: str
     
     # Langfuse
-    LANGFUSE_PUBLIC_KEY: str = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-    LANGFUSE_SECRET_KEY: str = os.getenv("LANGFUSE_SECRET_KEY", "")
+    LANGFUSE_PUBLIC_KEY: str
+    LANGFUSE_SECRET_KEY: str
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -23,8 +23,8 @@ class Settings(BaseSettings):
         "http://localhost:8000",
         "https://localhost",
         "https://localhost:8000",
+        # Add Railway.app domain pattern
         "https://*.up.railway.app",
-        "*"  # Allow all origins in development
     ]
     
     # File Upload
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     ALLOWED_FILE_TYPES: set[str] = {".txt"}
     
     # Vector Store
-    FAISS_INDEX_PATH: str = os.getenv("FAISS_INDEX_PATH", "data/faiss_index")
+    FAISS_INDEX_PATH: str = "data/faiss_index"
     
     class Config:
         env_file = ".env"
