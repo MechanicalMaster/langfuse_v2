@@ -1,49 +1,43 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from .core.config import get_settings
 from .api import chat, documents
 import os
 from datetime import datetime
+from app.core.observability import langfuse
 
 settings = get_settings()
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    docs_url=None if os.getenv("RAILWAY_ENVIRONMENT") else "/docs",
-    redoc_url=None if os.getenv("RAILWAY_ENVIRONMENT") else "/redoc"
-)
+app = FastAPI(title=settings.PROJECT_NAME)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all origins for testing
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
+    max_age=86400,
 )
 
-# Basic routes first
-@app.get("/health")
-async def health_check():
-    """Basic health check endpoint"""
-    return {"status": "ok"}
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Add routers
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
+app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"])
 
 @app.get("/")
 async def root():
-    """Serve the static index.html"""
-    try:
-        return FileResponse("app/static/index.html")
-    except Exception as e:
-        return JSONResponse(
-            content={"message": "Welcome to Policy Chatbot API"},
-            status_code=200
-        )
+    return FileResponse("app/static/index.html")
 
-# Mount static files after basic routes
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-# Add API routers last
-app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
-app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"]) 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Railway"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": os.getenv("RAILWAY_ENVIRONMENT", "development")
+    } 
