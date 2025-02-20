@@ -12,18 +12,17 @@ settings = get_settings()
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# Configure CORS
+# More permissive CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
-    max_age=86400,
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Mount static files with explicit type
+app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
 
 # Add routers
 app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
@@ -31,13 +30,24 @@ app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", 
 
 @app.get("/")
 async def root():
-    return FileResponse("app/static/index.html")
+    """Root endpoint serving the chat interface"""
+    try:
+        return FileResponse("app/static/index.html")
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for Railway"""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "environment": os.getenv("RAILWAY_ENVIRONMENT", "development")
-    } 
+    """Basic health check endpoint"""
+    try:
+        return {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "version": "1.0.0"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        } 
