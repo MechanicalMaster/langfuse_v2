@@ -1,0 +1,1677 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+
+Additional Info:
+----------------
+
+================================================================
+Directory Structure
+================================================================
+.env.example
+.gitignore
+app/__init__.py
+app/api/__init__.py
+app/api/chat.py
+app/api/documents.py
+app/api/models.py
+app/core/config.py
+app/core/observability.py
+app/core/security.py
+app/main.py
+app/services/chat_service.py
+app/services/document_service.py
+app/services/vector_store.py
+app/static/css/style.css
+app/static/index.html
+app/static/js/main.js
+app/static/js/upload.js
+app/static/policy.html
+code.md
+plan.md
+project_structure.md
+railway.toml
+requirements.txt
+spec.md
+
+================================================================
+Files
+================================================================
+
+================
+File: .env.example
+================
+# Auth
+AUTH_PASSWORD=Langfuse 
+
+OPENAI_API_KEY=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
+LANGFUSE_PUBLIC_KEY=pk-lf-069fab07-1154-4db0-9b8f-8b4dcd6ce38c
+LANGFUSE_SECRET_KEY=sk-lf-54cc3d8f-beaa-44b1-8ee3-777f0fd0ed63
+
+================
+File: .gitignore
+================
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.venv
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+data/
+*.log
+
+================
+File: app/__init__.py
+================
+# Empty file to make the directory a Python package
+
+================
+File: app/api/__init__.py
+================
+# Empty file to make the directory a Python package
+
+================
+File: app/api/chat.py
+================
+from fastapi import APIRouter, Depends, HTTPException
+from app.services.chat_service import ChatService
+from .models import ChatRequest
+
+router = APIRouter()
+
+@router.post("/chat")
+async def chat(
+    request: ChatRequest,
+    chat_service: ChatService = Depends(lambda: ChatService())
+):
+    try:
+        response = await chat_service.chat(request.message, request.session_id)
+        return {"response": response}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+================
+File: app/api/documents.py
+================
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from app.services.document_service import DocumentService
+
+router = APIRouter()
+
+@router.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    document_service: DocumentService = Depends(lambda: DocumentService())
+):
+    try:
+        content = await file.read()
+        text = content.decode('utf-8')
+        result = await document_service.process_document(text, file.filename)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+================
+File: app/api/models.py
+================
+from pydantic import BaseModel
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str
+
+class ChatResponse(BaseModel):
+    response: str
+
+================
+File: app/core/config.py
+================
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+from typing import List
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "Policy Chatbot"
+    API_V1_STR: str = "/api/v1"
+    
+    # Authentication
+    AUTH_PASSWORD: str = "Langfuse"
+    
+    # OpenAI
+    OPENAI_API_KEY: str
+    
+    # Langfuse
+    LANGFUSE_PUBLIC_KEY: str
+    LANGFUSE_SECRET_KEY: str
+    
+    # CORS
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    
+    # File Upload
+    MAX_FILE_SIZE: int = 25 * 1024  # 25KB
+    ALLOWED_FILE_TYPES: set[str] = {".txt"}
+    
+    # Vector Store
+    FAISS_INDEX_PATH: str = "data/faiss_index"
+    
+    class Config:
+        env_file = ".env"
+
+@lru_cache()
+def get_settings():
+    return Settings()
+
+================
+File: app/core/observability.py
+================
+from langfuse.client import Langfuse
+from app.core.config import get_settings
+
+settings = get_settings()
+
+# Create shared Langfuse client
+langfuse = Langfuse(
+    public_key=settings.LANGFUSE_PUBLIC_KEY,
+    secret_key=settings.LANGFUSE_SECRET_KEY,
+    host="https://us.cloud.langfuse.com"
+)
+
+================
+File: app/core/security.py
+================
+from fastapi import HTTPException, Security
+from fastapi.security import APIKeyHeader
+from app.core.config import get_settings
+
+settings = get_settings()
+api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
+
+async def verify_password(token: str) -> bool:
+    """Verify the bearer token against the configured password"""
+    expected = f"Bearer {settings.AUTH_PASSWORD}"
+    if not token or token != expected:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
+
+def verify_password_old(password: str) -> bool:
+    """Verify the password against the configured password"""
+    return password == settings.AUTH_PASSWORD
+
+================
+File: app/main.py
+================
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from .core.config import get_settings
+from .api import chat, documents
+
+settings = get_settings()
+
+app = FastAPI(title=settings.PROJECT_NAME)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# Add routers
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
+app.include_router(documents.router, prefix=f"{settings.API_V1_STR}/documents", tags=["documents"])
+
+@app.get("/")
+async def root():
+    return FileResponse("app/static/index.html")
+
+================
+File: app/services/chat_service.py
+================
+from typing import Dict, List
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from langgraph.graph import StateGraph
+from langchain.schema import BaseMessage, HumanMessage, AIMessage
+from app.services.vector_store import VectorStoreService
+from app.core.observability import langfuse
+from fastapi import HTTPException
+import time
+
+from app.core.config import get_settings
+
+settings = get_settings()
+
+class ChatService:
+    def __init__(self):
+        self.llm = ChatOpenAI(
+            temperature=0,
+            openai_api_key=settings.OPENAI_API_KEY
+        )
+        self.vector_store = VectorStoreService()
+        self.conversation_states: Dict[str, List[BaseMessage]] = {}
+
+    async def _retrieve_context(self, query: str) -> str:
+        """Retrieve relevant context from vector store"""
+        try:
+            docs = await self.vector_store.similarity_search(query)
+            if not docs:
+                return "No relevant policy information found. Please try another question or upload a policy document first."
+            return "\n".join([doc.page_content for doc in docs])
+        except Exception as e:
+            if "index does not exist" in str(e).lower():
+                return "No policy documents have been uploaded yet. Please upload a document first."
+            raise e
+
+    async def chat(self, message: str, session_id: str) -> str:
+        """Process a chat message and return the response"""
+        try:
+            # Initialize conversation state if needed
+            if session_id not in self.conversation_states:
+                self.conversation_states[session_id] = []
+
+            # Add user message to state
+            self.conversation_states[session_id].append(HumanMessage(content=message))
+
+            # Retrieve context
+            context = await self._retrieve_context(message)
+
+            # Create trace
+            trace = langfuse.trace(
+                name="chat_interaction",
+                id=session_id,  # Added session_id as trace ID
+                metadata={
+                    "session_id": session_id,
+                    "message_length": len(message),
+                    "context_length": len(context)
+                }
+            )
+
+            try:
+                # Create and use prompt
+                prompt = ChatPromptTemplate.from_messages([
+                    ("system", """You are a helpful assistant that answers questions based on the provided policy documents. 
+                    If no relevant information is found in the context, politely explain that to the user.
+                    
+                    Context: {context}"""),
+                    ("human", "{question}")
+                ])
+
+                # Log generation
+                generation = trace.generation(
+                    name="chat_response",
+                    model="gpt-3.5-turbo",
+                    parameters={"temperature": 0},
+                    input={
+                        "message": message,
+                        "context": context
+                    }
+                )
+
+                # Get response from LLM
+                start_time = time.time()
+                chain = prompt | self.llm
+                response = await chain.ainvoke({
+                    "context": context,
+                    "question": message
+                })
+                duration = time.time() - start_time
+
+                # Update generation with result
+                generation.update(
+                    output=response.content,
+                    metadata={
+                        "response_length": len(response.content),
+                        "duration": duration
+                    }
+                )
+
+                # Add AI response to state
+                self.conversation_states[session_id].append(AIMessage(content=response.content))
+                
+                return response.content
+
+            except Exception as e:
+                if 'generation' in locals():
+                    generation.update(
+                        metadata={"error": str(e)},
+                        status="error"
+                    )
+                raise e
+
+        except Exception as e:
+            if 'trace' in locals():
+                trace.update(
+                    metadata={"error": str(e)},
+                    status="error"
+                )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error processing chat message: {str(e)}"
+            )
+
+================
+File: app/services/document_service.py
+================
+from typing import BinaryIO, List
+from pathlib import Path
+import os
+from fastapi import UploadFile, HTTPException
+from app.core.config import get_settings
+from app.services.vector_store import VectorStoreService
+from langfuse.client import Langfuse
+import time
+from app.core.observability import langfuse
+
+settings = get_settings()
+
+class DocumentService:
+    def __init__(self):
+        self.vector_store = VectorStoreService()
+
+    def _validate_file(self, file: UploadFile) -> None:
+        """Validate file type and size"""
+        # Check file extension
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in settings.ALLOWED_FILE_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File type not allowed. Allowed types: {settings.ALLOWED_FILE_TYPES}"
+            )
+
+        # Check file size
+        file.file.seek(0, os.SEEK_END)
+        file_size = file.file.tell()
+        file.file.seek(0)
+        
+        if file_size > settings.MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size: {settings.MAX_FILE_SIZE/1024}KB"
+            )
+
+    async def process_document(self, text: str, filename: str):
+        """Process a document and store it in the vector store"""
+        try:
+            # Create trace
+            trace = langfuse.trace(
+                name="document_processing",
+                id=filename,  # Use filename as trace ID
+                metadata={
+                    "filename": filename,
+                    "file_size": len(text)
+                }
+            )
+
+            try:
+                start_time = time.time()
+                
+                # Process chunks
+                chunks = text.split('\n\n')
+                chunks = [chunk.strip() for chunk in chunks if chunk.strip()]
+
+                # Add metadata to chunks
+                metadatas = [{"source": filename, "chunk": i} for i in range(len(chunks))]
+                
+                # Store in vector store
+                await self.vector_store.add_texts(chunks, metadatas)
+
+                duration = time.time() - start_time
+
+                # Update trace with success
+                trace.update(
+                    metadata={
+                        "chunks_processed": len(chunks),
+                        "avg_chunk_size": sum(len(c) for c in chunks) / len(chunks) if chunks else 0,
+                        "duration": duration
+                    },
+                    status="success"
+                )
+
+                return {
+                    "filename": filename,
+                    "chunks_processed": len(chunks)
+                }
+
+            except Exception as e:
+                trace.update(
+                    metadata={"error": str(e)},
+                    status="error"
+                )
+                raise e
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def process_document_file(self, file: UploadFile) -> dict:
+        """Process uploaded document and store in vector store"""
+        try:
+            self._validate_file(file)
+            
+            # Read and decode content
+            content = await file.read()
+            text = content.decode('utf-8')
+            
+            # Split text into chunks (simple splitting by paragraphs for now)
+            chunks = [chunk.strip() for chunk in text.split('\n\n') if chunk.strip()]
+            
+            # Add metadata to each chunk
+            metadatas = [{"source": file.filename, "chunk_index": i} for i in range(len(chunks))]
+            
+            # Store in vector store
+            await self.vector_store.add_texts(chunks, metadatas)
+            
+            return {
+                "message": "Document processed successfully",
+                "filename": file.filename,
+                "chunks_processed": len(chunks)
+            }
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+================
+File: app/services/vector_store.py
+================
+from typing import List, Optional
+import os
+import faiss
+import numpy as np
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_community.vectorstores import FAISS
+from app.core.config import get_settings
+
+settings = get_settings()
+
+class VectorStoreService:
+    def __init__(self):
+        self.embeddings = OpenAIEmbeddings(
+            openai_api_key=settings.OPENAI_API_KEY
+        )
+        self.vector_store = self._load_or_create_store()
+
+    def _load_or_create_store(self) -> FAISS:
+        """Load existing FAISS index or create a new one"""
+        if os.path.exists(settings.FAISS_INDEX_PATH):
+            return FAISS.load_local(
+                settings.FAISS_INDEX_PATH,
+                self.embeddings,
+                allow_dangerous_deserialization=True
+            )
+        
+        # Create new vector store
+        vector_store = FAISS.from_texts(
+            [""], 
+            self.embeddings,
+            docstore=InMemoryDocstore({})
+        )
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(settings.FAISS_INDEX_PATH), exist_ok=True)
+        vector_store.save_local(settings.FAISS_INDEX_PATH)
+        return vector_store
+
+    async def similarity_search(self, query: str, k: int = 4) -> List[dict]:
+        """Search for similar documents"""
+        try:
+            return self.vector_store.similarity_search(query, k=k)
+        except Exception as e:
+            if "index does not exist" in str(e).lower():
+                raise Exception("No documents have been indexed yet")
+            raise e
+
+    async def add_texts(self, texts: List[str], metadatas: Optional[List[dict]] = None) -> List[str]:
+        """Add texts to the vector store"""
+        try:
+            ids = self.vector_store.add_texts(texts, metadatas)
+            self.vector_store.save_local(settings.FAISS_INDEX_PATH)
+            return ids
+        except Exception as e:
+            raise Exception(f"Error adding texts to vector store: {str(e)}")
+
+================
+File: app/static/css/style.css
+================
+:root {
+    /* Pastel color palette */
+    --bg-color: #f8fafc;
+    --text-color: #334155;
+    --primary-color: #818cf8;
+    --secondary-color: #ffffff;
+    --border-color: #e2e8f0;
+    --accent-color: #a5b4fc;
+    --success-color: #86efac;
+    --error-color: #fca5a5;
+    --shadow-color: rgba(0, 0, 0, 0.05);
+    --header-gradient: linear-gradient(135deg, #818cf8, #a5b4fc);
+    --message-gradient: linear-gradient(135deg, #818cf8, #93c5fd);
+}
+
+/* Dark theme variables */
+[data-theme="dark"] {
+    --bg-color: #0f172a;
+    --text-color: #e2e8f0;
+    --primary-color: #818cf8;
+    --secondary-color: #1e293b;
+    --border-color: #334155;
+    --accent-color: #a5b4fc;
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --header-gradient: linear-gradient(135deg, #4f46e5, #818cf8);
+    --message-gradient: linear-gradient(135deg, #4f46e5, #6366f1);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: all 0.3s ease;
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chat Interface Styles */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px var(--shadow-color);
+    background-color: var(--secondary-color);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.chat-header {
+    padding: 1.25rem;
+    background: var(--header-gradient);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.chat-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.message {
+    padding: 1rem 1.25rem;
+    border-radius: 1.25rem;
+    max-width: 85%;
+    position: relative;
+    animation: fadeIn 0.3s ease;
+    line-height: 1.6;
+    font-size: 0.9375rem;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.user-message {
+    background: var(--message-gradient);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.bot-message {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color);
+    margin-right: auto;
+    border-bottom-left-radius: 0.25rem;
+}
+
+.timestamp {
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+    opacity: 0.7;
+    text-align: right;
+}
+
+.chat-input {
+    padding: 1rem;
+    background-color: var(--bg-color);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.75rem;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 0.875rem 1.25rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 0.75rem;
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 0.9375rem;
+    transition: all 0.2s ease;
+}
+
+.chat-input input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+}
+
+button {
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 0.75rem;
+    background: var(--header-gradient);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 0.5rem;
+        height: 100vh;
+    }
+
+    .chat-container {
+        border-radius: 0.75rem;
+    }
+
+    .chat-header {
+        padding: 0.75rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .header-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .message {
+        max-width: 90%;
+        padding: 0.875rem;
+        font-size: 0.875rem;
+    }
+
+    .chat-input {
+        padding: 0.75rem;
+    }
+
+    .chat-input input {
+        padding: 0.625rem;
+    }
+
+    button {
+        padding: 0.625rem 1rem;
+    }
+}
+
+/* Icons */
+.icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: currentColor;
+}
+
+/* Loading Animation */
+.typing-indicator {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.typing-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: var(--text-color);
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: typingAnimation 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingAnimation {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.8; }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Upload Interface Styles */
+.upload-container {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 30px;
+    background-color: var(--secondary-color);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.upload-box {
+    border: 2px dashed var(--border-color);
+    padding: 40px;
+    margin: 20px 0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: var(--bg-color);
+}
+
+.upload-box:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.upload-box.dragover {
+    border-color: var(--primary-color);
+    background-color: rgba(59, 130, 246, 0.1);
+    transform: scale(1.02);
+}
+
+.upload-status {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.upload-status.success {
+    color: var(--success-color);
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+.upload-status.error {
+    color: var(--error-color);
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--bg-color);
+    margin: 15% auto;
+    padding: 20px;
+    border-radius: 5px;
+    width: 300px;
+    text-align: center;
+}
+
+.theme-toggle {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.dark-icon, .light-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+[data-theme="dark"] .dark-icon {
+    display: none;
+}
+
+[data-theme="light"] .light-icon {
+    display: none;
+}
+
+.welcome-message {
+    text-align: center;
+    padding: 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.welcome-message h2 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.welcome-message p {
+    margin-bottom: 0.75rem;
+    line-height: 1.6;
+}
+
+================
+File: app/static/index.html
+================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Policy Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@heroicons/outline/24/outline.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Chat Interface -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1>
+                    <i class="heroicons-outline chat-bubble-left-right"></i>
+                    Policy Chatbot
+                </h1>
+                <div class="header-controls">
+                    <a href="/static/policy.html" class="nav-link">
+                        <i class="heroicons-outline document-plus"></i>
+                        Upload Policy
+                    </a>
+                    <button onclick="toggleTheme()" class="theme-toggle" aria-label="Toggle theme">
+                        <i class="heroicons-outline moon dark-icon"></i>
+                        <i class="heroicons-outline sun light-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Type your message..." 
+                    aria-label="Message input"
+                >
+                <button onclick="sendMessage()">
+                    <i class="heroicons-outline paper-airplane"></i>
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
+
+================
+File: app/static/js/main.js
+================
+const API_BASE_URL = '/api/v1';
+
+// Generate a random session ID
+const sessionId = Math.random().toString(36).substring(7);
+
+// Theme management
+function toggleTheme() {
+    const body = document.body;
+    const currentTheme = body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+}
+
+// Initialize theme from localStorage
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.body.setAttribute('data-theme', savedTheme);
+
+// Message handling
+function addMessage(content, isUser = false) {
+    const messagesDiv = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    messageDiv.innerHTML = `
+        ${content}
+        <div class="timestamp">${timestamp}</div>
+    `;
+    
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message
+    addMessage(message, true);
+    input.value = '';
+    
+    // Show typing indicator
+    const typingIndicator = document.createElement('div');
+    typingIndicator.className = 'typing-indicator';
+    typingIndicator.innerHTML = `
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+    `;
+    document.getElementById('chatMessages').appendChild(typingIndicator);
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/chat/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                session_id: sessionId
+            })
+        });
+        
+        // Remove typing indicator
+        typingIndicator.remove();
+        
+        if (response.ok) {
+            const data = await response.json();
+            addMessage(data.response);
+        } else {
+            const errorData = await response.json();
+            addMessage(errorData.detail || 'Sorry, there was an error processing your message.');
+        }
+    } catch (error) {
+        // Remove typing indicator
+        typingIndicator.remove();
+        console.error('Error:', error);
+        addMessage('Network error. Please check your connection and try again.');
+    }
+}
+
+// Event Listeners
+document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// Add welcome message function
+function addWelcomeMessage() {
+    const messagesDiv = document.getElementById('chatMessages');
+    const welcomeDiv = document.createElement('div');
+    welcomeDiv.className = 'welcome-message';
+    welcomeDiv.innerHTML = `
+        <h2>👋 Welcome to Policy Chatbot!</h2>
+        <p>I'm here to help you understand your policy documents. You can:</p>
+        <p>1. Upload your policy documents using the "Upload Policy" button</p>
+        <p>2. Ask me questions about your policies</p>
+        <p>3. Get instant, accurate responses based on your documents</p>
+        <p>How can I assist you today?</p>
+    `;
+    messagesDiv.appendChild(welcomeDiv);
+}
+
+// Call welcome message when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    addWelcomeMessage();
+});
+
+================
+File: app/static/js/upload.js
+================
+const API_BASE_URL = '/api/v1';
+
+// File upload handling
+const uploadBox = document.getElementById('uploadBox');
+const fileInput = document.getElementById('fileInput');
+const uploadStatus = document.getElementById('uploadStatus');
+
+uploadBox.addEventListener('click', () => fileInput.click());
+
+uploadBox.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadBox.classList.add('dragover');
+});
+
+uploadBox.addEventListener('dragleave', () => {
+    uploadBox.classList.remove('dragover');
+});
+
+uploadBox.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadBox.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    handleFiles(files);
+});
+
+fileInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+});
+
+async function handleFiles(files) {
+    const file = files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.txt')) {
+        uploadStatus.innerHTML = 'Please upload a .txt file';
+        return;
+    }
+
+    // Validate file size
+    if (file.size > 25 * 1024) { // 25KB
+        uploadStatus.innerHTML = 'File size must be less than 25KB';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    uploadStatus.innerHTML = 'Uploading...';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            uploadStatus.innerHTML = `Success! Processed ${data.chunks_processed} chunks from ${data.filename}`;
+        } else {
+            throw new Error('Upload failed');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        uploadStatus.innerHTML = 'Failed to upload file';
+    }
+}
+
+================
+File: app/static/policy.html
+================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Policy Document</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Upload Interface -->
+        <div class="upload-container">
+            <h1>Upload Policy Document</h1>
+            <div class="upload-box" id="uploadBox">
+                <input type="file" id="fileInput" accept=".txt" hidden>
+                <div class="upload-content">
+                    <p>Drop your .txt file here or click to browse</p>
+                    <small>Maximum file size: 25KB</small>
+                </div>
+            </div>
+            <div class="upload-status" id="uploadStatus"></div>
+            <a href="/" class="nav-link">Back to Chat</a>
+        </div>
+    </div>
+    <script src="/static/js/upload.js"></script>
+</body>
+</html>
+
+================
+File: code.md
+================
+# Policy Chatbot Implementation Summary
+
+## Core Components
+
+### 1. Vector Store Service (`vector_store.py`)
+- Uses FAISS for efficient similarity search
+- Manages document embeddings using OpenAI
+- Handles persistent storage of indices
+- Provides methods for:
+  - Adding new documents
+  - Searching similar documents
+  - Loading/creating FAISS store
+
+### 2. Chat Service (`chat_service.py`)
+- Manages conversation state and context
+- Integrates with Langfuse for observability
+- Uses LangChain for:
+  - Chat prompt management
+  - LLM interactions
+  - Context retrieval
+- Features:
+  - Session-based conversation tracking
+  - Context-aware responses
+  - Error handling and recovery
+
+### 3. Document Processing
+- Supports .txt file uploads
+- Size limit: 25KB
+- Chunks documents for better retrieval
+- Stores metadata with each chunk
+
+### 4. Frontend Components
+- Chat Interface
+  - Real-time message updates
+  - Dark/Light mode support
+  - Message timestamps
+- Upload Interface
+  - Drag & drop support
+  - Progress indicators
+  - File validation
+
+### 5. API Layer
+- RESTful endpoints for:
+  - Chat interactions
+  - Document uploads
+- Error handling middleware
+- CORS support
+
+## Technology Stack
+- FastAPI (Backend)
+- LangChain (LLM Integration)
+- FAISS (Vector Store)
+- OpenAI (Embeddings & Chat)
+- Langfuse (Observability)
+
+================
+File: plan.md
+================
+# Implementation Plan: Memory-Persistent Chatbot with FAISS-Based Policy Retrieval
+
+## Phase 1: Project Setup and Basic Infrastructure (Week 1)
+
+### 1.1 Development Environment Setup
+- Initialize Git repository
+- Set up Python virtual environment
+- Create project structure
+- Configure linting and formatting tools
+- Set up pre-commit hooks
+
+### 1.2 Dependencies and Configuration
+- Create requirements.txt with initial dependencies:
+  - fastapi
+  - langchain
+  - langgraph
+  - faiss-cpu
+  - openai
+  - langfuse
+  - python-multipart
+  - uvicorn
+  - python-jose[cryptography]  # For basic auth
+- Set up configuration management (environment variables)
+- Create Docker configuration
+- Set up static authentication with password "Langfuse"
+
+## Phase 2: Core Backend Components (Week 2)
+
+### 2.1 FAISS Vector Store Implementation
+- Create FAISS storage service
+- Implement document embedding generation
+- Set up persistent storage for FAISS indices
+- Create retrieval mechanisms
+- Add relevance scoring
+
+### 2.2 Document Processing Service
+- Create document upload handler (supporting .txt files only)
+- Add file size validation (max 25KB)
+- Add text preprocessing
+- Implement embedding generation pipeline
+- Set up document metadata storage
+
+### 2.3 Memory Management System
+- Implement in-memory conversation session management
+  - Sessions cleared on browser reload
+- Set up conversation context handling
+- Remove persistent storage requirements
+
+## Phase 3: Chatbot Engine (Week 2-3)
+
+### 3.1 LangChain Integration
+- Set up LangChain base components
+- Create custom chains for policy retrieval
+- Implement conversation flow
+- Add error handling and fallbacks
+
+### 3.2 LangGraph Implementation
+- Set up conversation state management
+- Implement turn-taking mechanism
+- Create conversation flow graphs
+- Add state persistence
+
+### 3.3 Response Generation
+- Implement answer generation logic
+- Add context injection
+- Create response formatting
+- Implement confidence scoring
+
+## Phase 4: API Layer (Week 3)
+
+### 4.1 FastAPI Setup
+- Create API structure
+- Implement chat endpoints
+- Add document upload endpoints
+- Set up WebSocket support for real-time chat
+- Add error handling middleware
+
+### 4.2 API Security
+- Implement basic authentication middleware
+- Add input validation
+- Set up CORS policies
+- Add basic security headers
+- Remove rate limiting requirements
+
+## Phase 5: Frontend Development (Week 4)
+
+### 5.1 Chat Interface
+- Create basic HTML/CSS structure
+- Implement chat UI components
+- Add real-time message updates
+- Implement dark mode
+- Add message timestamps
+- Add authentication form with password field
+- Add session reset on page reload
+
+### 5.2 Policy Upload Interface
+- Create upload page layout
+- Implement file upload for .txt files
+- Add file type and size validation (25KB limit)
+- Add upload progress indicators
+- Add success/error notifications
+- Add authentication check
+
+### 5.3 Frontend Integration
+- Connect chat interface to backend API
+- Implement WebSocket client
+- Add error handling
+- Implement loading states
+
+## Phase 6: Observability (Week 4)
+
+### 6.1 Langfuse Integration
+- Set up Langfuse client
+- Implement trace logging
+- Add performance monitoring
+- Create custom metrics
+
+### 6.2 Logging and Monitoring
+- Set up structured logging
+- Implement error tracking
+- Add performance metrics
+- Create monitoring dashboard
+
+## Phase 7: Testing and Documentation (Throughout)
+
+### 7.1 Testing
+- Unit tests for core components
+- Integration tests for API
+- End-to-end testing
+- Performance testing
+
+### 7.2 Documentation
+- API documentation
+- Setup instructions
+- User guide
+- System architecture documentation
+
+## Phase 8: Deployment (Final Week)
+
+### 8.1 Containerization
+- Finalize Dockerfile
+- Create docker-compose configuration
+- Set up container networking
+- Configure volume mounts
+
+### 8.2 Deployment Setup
+- Create deployment scripts
+- Set up CI/CD pipeline
+- Configure production environment
+- Create backup procedures
+
+## Timeline Summary
+- Week 1: Project Setup and Infrastructure
+- Week 2: Core Backend Components and Chatbot Engine
+- Week 3: API Layer and Integration
+- Week 4: Frontend and Observability
+- Final Week: Testing, Documentation, and Deployment
+
+## Success Criteria
+1. Chatbot successfully maintains conversation context
+2. Policy documents can be uploaded and processed
+3. FAISS retrieval provides relevant answers
+4. Frontend provides smooth user experience
+5. System is observable through Langfuse
+6. All core features are tested and documented
+7. System can be deployed using containers
+
+## Risk Mitigation
+1. Regular backups of FAISS store
+2. Fallback mechanisms for API failures
+3. Rate limiting to prevent abuse
+4. Proper error handling at all layers
+5. Monitoring and alerting setup
+
+================
+File: project_structure.md
+================
+
+
+================
+File: railway.toml
+================
+[build]
+builder = "nixpacks"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+
+================
+File: requirements.txt
+================
+fastapi>=0.100.0
+uvicorn>=0.15.0
+python-multipart>=0.0.5,<0.1.0
+python-jose[cryptography]>=3.3.0,<4.0.0
+langchain>=0.0.300
+langchain-community>=0.0.1
+langchain-openai>=0.0.1
+langgraph>=0.0.1
+faiss-cpu>=1.7.4
+openai>=1.0.0
+langfuse>=2.0.0
+python-dotenv>=0.19.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+================
+File: spec.md
+================
+Below is the updated complete technical specification document:
+
+---
+
+**Project Specification: Memory-Persistent Chatbot with FAISS-Based Policy Retrieval and Observability**
+
+---
+
+### 1. Overview
+
+The goal of this project is to develop a chatbot that maintains a continuous conversation thread with memory, retrieves answers from a FAISS vector store (populated from uploaded policy documents), and provides observability through Langfuse. The system will feature a very basic web-based frontend for chatting and a dedicated page for uploading policy documents. Once uploaded, these documents will be sent to OpenAI for embeddings, and the resulting embeddings will be stored on disk using FAISS. During a chat session, the chatbot will refer to the FAISS vector store for answers. If the relevant information is available in the FAISS store, the bot will answer; otherwise, it will decline to answer.
+
+---
+
+### 2. Core Functionalities
+
+#### 2.1 Chatbot Core
+- **Conversational Flow:**  
+  The chatbot will be built using LangChain and LangGraph, enabling persistent memory and a multi-turn conversation thread.
+- **Retrieval Mechanism:**  
+  Instead of relying on a static file, the bot will use a FAISS vector store as its primary knowledge base.
+- **Answering Policy Queries:**  
+  The chatbot will retrieve responses by querying the FAISS vector store. If the retrieved answer meets a relevance threshold, it will be provided to the user; otherwise, the bot will decline to answer.
+
+#### 2.2 Memory Management
+- **Session Memory:**  
+  LangGraph will manage conversation history using persistent memory mechanisms so that context is preserved across turns.
+- **User Sessions:**  
+  Unique session identifiers (thread IDs) will be used to ensure continuity across user interactions.
+
+#### 2.3 FAISS Vector Store Retrieval
+- **Policy Upload Interface:**  
+  A secondary page (e.g., `policy.html`) will be provided to allow users/admins to upload policy documents.
+- **Embeddings Generation:**  
+  Upon upload, the document will be processed and sent to OpenAI for generating embeddings.
+- **FAISS Storage:**  
+  The generated embeddings will be stored in a FAISS vector store on disk (within a designated folder). This FAISS store acts as the searchable knowledge base.
+- **Querying During Chat:**  
+  During chat interactions, the chatbot will query the FAISS vector store for policy-related answers. If a relevant answer is found, it will be returned; otherwise, the chatbot will state that the information is not available.
+
+#### 2.4 Observability with Langfuse
+- **Logging and Monitoring:**  
+  Langfuse will be integrated to log interactions, track query response times, and monitor retrieval successes or failures.
+- **Metadata Capture:**  
+  The system will capture detailed metadata such as user session details, query logs, response times, and information on whether a policy document answer was found in FAISS.
+
+---
+
+### 3. User Interaction & Frontend
+
+#### 3.1 Chat Interface
+- **Minimalist Web Chat:**  
+  A basic web-based chat window will be provided using simple HTML/CSS/JavaScript. This interface will allow users to type messages and see responses. Itshould a sleek and professional look, timestamp for messages and dark mode.
+- **Continuous Conversation:**  
+  The chat interface will display the ongoing conversation history, managed by the backend memory.
+
+#### 3.2 Policy Document Upload
+- **Upload Page (policy.html):**  
+  A secondary page will be created for uploading policy documents. Users can drop or select a file to be processed.
+- **Feedback & Processing:**  
+  Once the document is uploaded, users receive confirmation that the document is being processed (i.e., embeddings are being generated and stored).
+
+---
+
+### 4. System Architecture
+
+#### 4.1 Components
+- **Frontend:**  
+  - A simple HTML/CSS/JS chat interface for conversation.
+  - A dedicated upload page (`policy.html`) for policy documents.
+- **Backend:**  
+  - A Python API (using FastAPI or Flask) to handle chat requests and file uploads.
+- **Chatbot Engine:**  
+  - LangChain for conversational AI.
+  - LangGraph for managing conversation state and memory persistence.
+  - A custom retrieval component that queries a FAISS vector store (populated with policy document embeddings).
+- **Observability:**  
+  - Langfuse integration for logging and monitoring.
+- **Storage:**  
+  - FAISS vector store saved to disk (within a specific FAISS folder) for policy document embeddings.
+
+#### 4.2 Data Flow
+1. **Policy Upload:**
+   - User navigates to `policy.html` and uploads a policy document.
+   - The document is sent to the backend, which sends its content to OpenAI to generate embeddings.
+   - The resulting embeddings are stored in a FAISS vector store on disk.
+2. **Chat Interaction:**
+   - The user sends a message via the chat interface.
+   - The backend retrieves the conversation history from memory (via LangGraph) using a unique session identifier.
+   - The chatbot checks the FAISS vector store for a relevant answer regarding policy queries.
+   - If a relevant answer is found, it is returned; otherwise, the bot declines to answer.
+   - The conversation state is updated with the new turn.
+3. **Observability:**
+   - Every interaction, including file upload processing and chat queries, is logged in Langfuse with relevant metadata for performance monitoring and debugging.
+
+---
+
+### 5. Deployment & Scalability
+
+- **Containerization:**  
+  The entire backend, including the chatbot engine and API, will be containerized using Docker for consistency across environments.
+- **Deployment Options:**  
+  The system can be deployed on AWS (using ECS, EC2, or a similar service), or as a microservice via FastAPI on a VPS.
+- **Persistent Storage:**  
+  The FAISS vector store will be saved to disk in a dedicated folder. 
+- **Observability:**  
+  Langfuse’s dashboard and logging services will be set up to monitor real-time interactions, response times, and system health.
+
+---
+
+### 6. Future Enhancements
+
+- **Enhanced Retrieval:**  
+  Explore advanced retrieval strategies (e.g., combining keyword and vector-based search) to improve answer relevance.
+
+---
+
+### 7. Summary
+
+This project will deliver a robust, memory-persistent chatbot that leverages FAISS as a vector store for retrieving policy-related answers. The system provides:
+- A continuous conversation experience powered by LangChain and LangGraph.
+- A dynamic policy retrieval system where documents are uploaded via a dedicated page, processed for embeddings, and stored in FAISS.
+- A basic web chat interface for user interaction.
+- Full observability and logging using Langfuse for monitoring and debugging.
+
+The design emphasizes modularity, scalability, and ease of deployment while ensuring that the chatbot only answers queries when the required policy information is available in the FAISS vector store.
+
+
+
+================================================================
+End of Codebase
+================================================================
