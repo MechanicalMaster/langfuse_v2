@@ -9,22 +9,22 @@ class Settings(BaseSettings):
     # Authentication
     AUTH_PASSWORD: str = "Langfuse"
     
-    # OpenAI
+    # OpenAI (required)
     OPENAI_API_KEY: str
     
-    # Langfuse
-    LANGFUSE_PUBLIC_KEY: str
-    LANGFUSE_SECRET_KEY: str
+    # Langfuse (optional)
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
     
     # File Upload
-    MAX_FILE_SIZE: int = 25 * 1024  # 25KB
+    MAX_FILE_SIZE: int = 25 * 1024
     ALLOWED_FILE_TYPES: set[str] = {".txt"}
     
     # Vector Store
-    FAISS_INDEX_PATH: str = "data/faiss_index"
+    FAISS_INDEX_PATH: str = "/tmp/faiss_index"  # Use /tmp for Railway's ephemeral storage
     
     class Config:
         env_file = ".env"
