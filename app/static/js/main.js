@@ -1,4 +1,4 @@
-const API_BASE_URL = window.location.origin + '/api/v1';
+const API_BASE_URL = '/api/v1';
 
 // Generate a random session ID
 const sessionId = Math.random().toString(36).substring(7);
